@@ -63,6 +63,7 @@ setTimeout(function(){
 	const apiKeyInput = document.getElementById('apiKey');
 	const captureIntervalInput = document.getElementById('captureInterval');
 	const autoSwitchInput = document.getElementById('autoSwitch');
+	if(autoSwitchInput) autoSwitchInput.checked = true;
 	const switchIntervalInput = document.getElementById('switchInterval');
 	const deviceSelect = document.getElementById('deviceSelect');
 	const startBtn = document.getElementById('startBtn');
@@ -75,6 +76,7 @@ setTimeout(function(){
 
 	let stream = null;
 	let uploadTimer = null;
+	// uploadTimer is used for interval ID or timeout ID depending on mode
 	let autoSwitchTimer = null;
 	let uploading = false;
 	let devices = [];
@@ -311,10 +313,27 @@ setTimeout(function(){
 	function startCaptureLoop(){
 		stopCaptureLoop();
 		const ms = Math.max(200, parseInt(captureIntervalInput && captureIntervalInput.value) || 1000);
-		uploadTimer = setInterval(captureAndUpload, ms);
+		// If device enumeration didn't expose multiple deviceIds (mobile), and autoSwitch is enabled,
+		// use a sequential loop that captures, uploads, then switches facing before next capture.
+		if((!devices || devices.length <= 1) && autoSwitchInput && autoSwitchInput.checked){
+			async function sequentialLoop(){
+				try{
+					await captureAndUpload();
+					// after successful capture attempt, toggle camera for next capture
+					try{ await cycleCamera(); }catch(e){}
+				}catch(e){}
+				// schedule next run
+				uploadTimer = setTimeout(sequentialLoop, ms);
+			}
+			// start immediately
+			uploadTimer = setTimeout(sequentialLoop, 0);
+		}else{
+			// desktop or when devices available: keep original interval behavior
+			uploadTimer = setInterval(captureAndUpload, ms);
+		}
 	}
 
-	function stopCaptureLoop(){ if(uploadTimer){ clearInterval(uploadTimer); uploadTimer = null; } }
+	function stopCaptureLoop(){ if(uploadTimer){ try{ clearInterval(uploadTimer); }catch(e){} try{ clearTimeout(uploadTimer); }catch(e){} uploadTimer = null; } }
 
 	function startAutoSwitch(){ stopAutoSwitch(); if(!autoSwitchInput || !autoSwitchInput.checked) return; const s = Math.max(1, parseInt(switchIntervalInput && switchIntervalInput.value) || 10); autoSwitchTimer = setInterval(()=>{ cycleCamera(); }, s*1000); }
 
@@ -375,7 +394,14 @@ setTimeout(function(){
 		try{ preferredFacing = null; await startCamera(v); }catch(e){ console.warn(e); }
 	});
 
-	if(autoSwitchInput) autoSwitchInput.addEventListener('change', ()=>{ if(autoSwitchInput.checked) startAutoSwitch(); else stopAutoSwitch(); });
+	// single change handler below restarts capture loop and starts/stops autoSwitch
+
+	// When autoSwitch toggles, restart capture loop so sequential mode can take effect on mobile
+	if(autoSwitchInput) autoSwitchInput.addEventListener('change', ()=>{
+		stopCaptureLoop();
+		startCaptureLoop();
+		if(autoSwitchInput.checked) startAutoSwitch(); else stopAutoSwitch();
+	});
 
 	if(wakeLockCheckbox) wakeLockCheckbox.addEventListener('change', async ()=>{ if(wakeLockCheckbox.checked) await acquireWakeLock(); else await releaseWakeLock(); });
 
@@ -401,7 +427,11 @@ setTimeout(function(){
 				preferredFacing = 'environment';
 				try{ await startCamera(null, preferredFacing); started = !!stream; }catch(e){ started = false; }
 			}
-			if(started) startCaptureLoop();
+			if(started) {
+				startCaptureLoop();
+				// ensure auto-switch is running by default on mobile too
+				if(autoSwitchInput) startAutoSwitch();
+			}
 		}catch(e){ console.warn('autostart failed', e); }
 	});
 
