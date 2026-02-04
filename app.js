@@ -350,25 +350,37 @@ setTimeout(function(){
 			deviceIndex = (deviceIndex + 1) % devices.length;
 			const id = devices[deviceIndex].deviceId;
 			preferredFacing = null;
-			try{ await startCamera(id); }catch(e){ console.warn('Cycle camera failed', e); }
+			try{
+				const s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: id } } });
+				// stop previous tracks but keep loops running
+				try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+				await setActiveStream(s);
+			}catch(e){
+				// fallback to startCamera which will restart loops if needed
+				try{ await startCamera(id); }catch(err){ console.warn('Cycle camera failed', err); }
+			}
 		}else{
 			// fallback for mobile: toggle facingMode between user and environment
 			preferredFacing = (preferredFacing === 'environment') ? 'user' : 'environment';
 			// try to refresh device list and use deviceId switch if possible
 			try{ await getDevices(); }catch(e){}
-			// if we now have multiple deviceIds, switch by id
+			// if we now have multiple deviceIds, switch by id without stopping loops
 			if(devices.length > 1){
 				deviceIndex = (deviceIndex + 1) % devices.length;
 				const id2 = devices[deviceIndex].deviceId;
 				preferredFacing = null;
-				try{ await startCamera(id2); return; }catch(e){ console.warn('Cycle camera by id failed', e); }
+				try{
+					const s = await navigator.mediaDevices.getUserMedia({ video: { deviceId: { exact: id2 } } });
+					try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }catch(e){}
+					await setActiveStream(s);
+					return;
+				}catch(e){ console.warn('Cycle camera by id failed', e); }
 			}
 			// otherwise, attempt exact facingMode request which some browsers honor better
 			try{
-				// stop current stream before switching
-				stopCamera();
 				const exactConstraints = { video: { facingMode: { exact: preferredFacing } } };
 				const s = await navigator.mediaDevices.getUserMedia(exactConstraints);
+				try{ if(stream) stream.getTracks().forEach(t=>t.stop()); }catch(e){}
 				await setActiveStream(s);
 				return;
 			}catch(e){
