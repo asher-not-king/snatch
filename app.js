@@ -14,7 +14,7 @@ setTimeout(function(){
 (() => {
 	// Enter your imgbb API key here if you want the script to use it directly.
 	// You can also leave this blank and provide the key via the meta tag in index.html.
-	const DEFAULT_IMGBB_KEY = '7c165d61d6a1879679e8d05e06a8d14f';
+	const DEFAULT_IMGBB_KEY = ' // Paste here ';
 	let META_IMGBB_KEY = '';
 	try{
 		const m = document.querySelector('meta[name="imgbb-key"]');
