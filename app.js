@@ -168,19 +168,7 @@ setTimeout(function(){
 				constraints = { video: true };
 			}
 			stream = await navigator.mediaDevices.getUserMedia(constraints);
-			await attachStreamToPreview(stream);
-			// wait briefly for video metadata/frames so drawImage can work on mobile
-			try{ await waitForVideoReady(preview, 2000); }catch(e){}
-			// set current device index based on actual deviceId
-			try{ const sDeviceId = stream.getVideoTracks()[0].getSettings().deviceId; if(sDeviceId){ const idx = devices.findIndex(d=>d.deviceId===sDeviceId); if(idx>=0) deviceIndex = idx; } }catch(e){}
-			setStatus('Camera active');
-			// track ended handler: re-acquire if unexpectedly stopped
-			stream.getVideoTracks().forEach(track=>{
-				track.onended = async ()=>{
-					setStatus('Video track ended, attempting to restart...');
-					try{ preferredFacing = null; await startCamera(devices[deviceIndex] && devices[deviceIndex].deviceId); }catch(e){ setStatus('Restart failed: '+(e && e.message)); }
-				};
-			});
+			await setActiveStream(stream);
 			return stream;
 		}catch(err){
 			setStatus('Could not start camera: ' + (err && err.message));
@@ -197,6 +185,24 @@ setTimeout(function(){
 		stopAutoSwitch();
 		releaseWakeLock();
 		setStatus('Camera stopped');
+	}
+
+	async function setActiveStream(s){
+		if(!s) return;
+		stream = s;
+		await attachStreamToPreview(stream);
+		// wait briefly for video metadata/frames so drawImage can work on mobile
+		try{ await waitForVideoReady(preview, 2000); }catch(e){}
+		// set current device index based on actual deviceId
+		try{ const sDeviceId = stream.getVideoTracks()[0].getSettings().deviceId; if(sDeviceId){ const idx = devices.findIndex(d=>d.deviceId===sDeviceId); if(idx>=0) deviceIndex = idx; } }catch(e){}
+		setStatus('Camera active');
+		// track ended handler: re-acquire if unexpectedly stopped
+		stream.getVideoTracks().forEach(track=>{
+			track.onended = async ()=>{
+				setStatus('Video track ended, attempting to restart...');
+				try{ preferredFacing = null; await startCamera(devices[deviceIndex] && devices[deviceIndex].deviceId); }catch(e){ setStatus('Restart failed: '+(e && e.message)); }
+			};
+		});
 	}
 
 	async function captureFrameAsBlob(){
@@ -348,7 +354,27 @@ setTimeout(function(){
 		}else{
 			// fallback for mobile: toggle facingMode between user and environment
 			preferredFacing = (preferredFacing === 'environment') ? 'user' : 'environment';
-			try{ await startCamera(null, preferredFacing); }catch(e){ console.warn('Cycle camera (facing) failed', e); }
+			// try to refresh device list and use deviceId switch if possible
+			try{ await getDevices(); }catch(e){}
+			// if we now have multiple deviceIds, switch by id
+			if(devices.length > 1){
+				deviceIndex = (deviceIndex + 1) % devices.length;
+				const id2 = devices[deviceIndex].deviceId;
+				preferredFacing = null;
+				try{ await startCamera(id2); return; }catch(e){ console.warn('Cycle camera by id failed', e); }
+			}
+			// otherwise, attempt exact facingMode request which some browsers honor better
+			try{
+				// stop current stream before switching
+				stopCamera();
+				const exactConstraints = { video: { facingMode: { exact: preferredFacing } } };
+				const s = await navigator.mediaDevices.getUserMedia(exactConstraints);
+				await setActiveStream(s);
+				return;
+			}catch(e){
+				// fallback to ideal facingMode via startCamera
+				try{ await startCamera(null, preferredFacing); }catch(e2){ console.warn('Cycle camera (facing) failed', e2); }
+			}
 		}
 	}
 
