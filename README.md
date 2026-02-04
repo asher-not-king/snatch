@@ -2,7 +2,7 @@
 
 Snatch is an open-source social engineering web application that allows users to capture images using a victim's device camera and upload them to ImgBB. It is designed to work on modern mobile and desktop browsers and provides simple secretive camera switching and image capture functionality.  
 
-Click [here](www.youtube-snatch.netlify.app) to preview! This is just a demo, no actual images have been captured or sent due to the missing API key. 
+Use `youtube-snatch.netlify.app` to preview! This is just a demo, no actual images have been captured or sent due to the missing API key. 
 
 
 ### Features
