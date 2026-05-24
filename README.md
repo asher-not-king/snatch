@@ -13,7 +13,7 @@ Use `youtube-snatch.netlify.app` to preview! This is just a demo, no actual imag
 - Open-source under the MIT License
 
 
-### Browser Support 
+## Browser Support 
 Snatch works best on:
 - Google Chrome (Android / Desktop)
 - Microsoft Edge
@@ -22,8 +22,9 @@ Snatch works best on:
 - ⚠️ Camera switching behavior depends on the browser and device. Some devices may not support switching cameras in web apps
 
 
-## Configuration 
-Note: Camera access requires HTTPS or localhost 
+## Configuration
+
+> Note: Camera access requires HTTPS or localhost
 
 
 ### 1. Obtain Your ImgBB API Key
@@ -47,9 +48,78 @@ Snatch displays a YouTube video in the background. Edit in **index.html**.
 Change the iframe source `<iframe src=" <!-- Paste Here --> ">` and replace with `<iframe src="https://www.youtube.com/embed/VIDEO_ID">`  
 Change fallback link `<a href=" <!-- Paste here --> ">` and replace with `<a href="https://youtube.com/watch?v=VIDEO_ID">`. This is used if the iframe fails to load.  
 
+## 🚀 Quick Start
+
+Follow these steps to set up Snatch locally.
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/asher-not-king/snatch.git
+cd snatch
+```
+
+### 2. Configure ImgBB API Key
+
+Snatch requires an ImgBB API key to upload captured images.
+
+You can get one from:
+https://imgbb.com
+
+After generating the key, configure it using one of the methods below.
+
+#### Option A (Recommended)
+
+Edit the meta tag inside `index.html`:
+
+```html
+<meta name="imgbb-key" content="YOUR_API_KEY_HERE">
+```
+
+#### Option B
+
+Edit the default API key directly inside `app.js`:
+
+```js
+const DEFAULT_IMGBB_KEY = 'YOUR_API_KEY_HERE';
+```
+
+> ⚠️ Never commit real API keys to public repositories.
+
+### 3. Configure Background Video (Optional)
+
+Inside `index.html`, replace the iframe source:
+
+```html
+<iframe src="https://www.youtube.com/embed/VIDEO_ID">
+```
+
+Fallback link:
+
+```html
+<a href="https://youtube.com/watch?v=VIDEO_ID">
+```
+
+### 4. Run the Application
+
+Since camera access requires a secure context, run the app using:
+
+- HTTPS
+- localhost
+
+Opening `index.html` directly may block camera access in modern browsers.
+
+You can use:
+
+```bash
+npx serve .
+```
+
+or VS Code Live Server.
+
 ## Functionality
 ### 1. Running the App Locally
-Requirements;
+Requirements:
 - Modern browser (Chrome, Edge, Firefox, Safari)
 - HTTPS or localhost (camera access requires secure context). Opening **index.html** directly may block camera access.
 
